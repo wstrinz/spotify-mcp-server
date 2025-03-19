@@ -18,7 +18,6 @@ A lightweight [Model Context Protocol (MCP)](https://modelcontextprotocol.io) se
   - [Spotify API Configuration](#spotify-api-configuration)
   - [Authentication Process](#authentication-process)
 - [Integrating with Claude Desktop and Cursor](#integrating-with-claude-desktop-and-cursor)
-- [Available Commands](#available-commands)
 
 ## Example Interactions
 
@@ -225,14 +224,3 @@ For Cursor, go to the MCP tab in `Cursor Settings` (command + shift + J). Add a 
 ```bash
 node path/to/spotify-mcp-server/build/index.js
 ```
-
-## Available Commands
-
-Here are some example commands to try with your integrated AI assistant:
-
-- "Find me some jazz tracks"
-- "Show my playlists"
-- "What's playing right now?"
-- "Create a new playlist called 'Morning Coffee'"
-- "Skip to the next track"
-- "Set the volume to 70%"
