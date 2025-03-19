@@ -7,7 +7,6 @@
     "spotify-mcp": "./build/index.js"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
     "auth": "tsc && node build/auth.js"
   },
@@ -16,7 +15,6 @@
   ],
   "keywords": [],
   "author": "Marcel Marais",
-  "license": "ISC",
   "description": "A Model Context Protocol server for Spotify integration",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.6.1",
