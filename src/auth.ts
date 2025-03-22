@@ -2,7 +2,6 @@
 
 import { authorizeSpotify } from "./utils.js";
 
-// Run the authentication flow
 console.log("Starting Spotify authentication flow...");
 authorizeSpotify()
   .then(() => {

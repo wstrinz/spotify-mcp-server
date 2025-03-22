@@ -5,3 +5,4 @@ package-lock.json
 spotify-config.json
 build
 dist
+.DS_Store
