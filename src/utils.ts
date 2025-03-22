@@ -287,7 +287,7 @@ export async function handleSpotifyRequest<T>(
   } catch (error) {
     // Skip "Unexpected token / invalid JSON" errors as these are actually successful operations
     const errorMessage = error instanceof Error ? error.message : String(error);
-    if (errorMessage.includes('Unexpected token')) {
+    if (errorMessage.includes('Unexpected token') || errorMessage.includes('Unexpected non-whitespace character')) {
       return undefined as T;
     }
     // Rethrow other errors
