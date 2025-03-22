@@ -52,20 +52,17 @@ export function createSpotifyApi(): SpotifyApi {
 
   const config = loadSpotifyConfig();
 
-  if (config.accessToken) {
+  if (config.accessToken && config.refreshToken) {
     const accessToken = {
       access_token: config.accessToken,
       token_type: 'Bearer',
-      expires_in: 3600, // Default to 1 hour
+      expires_in: 3600 * 24 * 30, // Default to 1 month
+      refresh_token: config.refreshToken,
     };
-
-    if (config.refreshToken) {
-      Object.assign(accessToken, { refresh_token: config.refreshToken });
-    }
 
     cachedSpotifyApi = SpotifyApi.withAccessToken(
       config.clientId,
-      accessToken as any,
+      accessToken,
     );
     return cachedSpotifyApi;
   }
