@@ -17,31 +17,18 @@ export const pausePlayback: tool<{
   handler: async (args, extra: RequestHandlerExtra) => {
     const { deviceId } = args;
 
-    try {
-      await handleSpotifyRequest(async (spotifyApi) => {
-        const deviceParam = deviceId || '';
-        await spotifyApi.player.pausePlayback(deviceParam);
-      });
+    await handleSpotifyRequest(async (spotifyApi) => {
+      await spotifyApi.player.pausePlayback(deviceId || '');
+    });
 
-      return {
-        content: [
-          {
-            type: 'text',
-            text: 'Playback paused',
-          },
-        ],
-      };
-    } catch (error) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `Error pausing playback: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
-    }
+    return {
+      content: [
+        {
+          type: 'text',
+          text: 'Playback paused',
+        },
+      ],
+    };
   },
 };
 
@@ -59,35 +46,22 @@ export const skipToNext: tool<{
   handler: async (args, extra: RequestHandlerExtra) => {
     const { deviceId } = args;
 
-    try {
-      await handleSpotifyRequest(async (spotifyApi) => {
-        const deviceParam = deviceId || '';
-        await spotifyApi.player.skipToNext(deviceParam);
-      });
 
-      return {
-        content: [
-          {
-            type: 'text',
-            text: 'Skipped to next track',
-          },
-        ],
-      };
-    } catch (error) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `Error skipping to next track: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
-    }
+    await handleSpotifyRequest(async (spotifyApi) => {
+      await spotifyApi.player.skipToNext(deviceId || '');
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: 'Skipped to next track',
+        },
+      ],
+    };
   },
 };
 
-// Skip to previous track
 export const skipToPrevious: tool<{
   deviceId: z.ZodOptional<z.ZodString>;
 }> = {
@@ -103,31 +77,19 @@ export const skipToPrevious: tool<{
   handler: async (args, extra: RequestHandlerExtra) => {
     const { deviceId } = args;
 
-    try {
-      await handleSpotifyRequest(async (spotifyApi) => {
-        const deviceParam = deviceId || '';
-        await spotifyApi.player.skipToPrevious(deviceParam);
-      });
 
-      return {
-        content: [
-          {
-            type: 'text',
-            text: 'Skipped to previous track',
-          },
-        ],
-      };
-    } catch (error) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `Error skipping to previous track: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
-    }
+    await handleSpotifyRequest(async (spotifyApi) => {
+      await spotifyApi.player.skipToPrevious(deviceId || '');
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: 'Skipped to previous track',
+        },
+      ],
+    };
   },
 };
 
@@ -152,40 +114,27 @@ export const createPlaylist: tool<{
   handler: async (args, extra: RequestHandlerExtra) => {
     const { name, description, public: isPublic = false } = args;
 
-    try {
-      const result = await handleSpotifyRequest(async (spotifyApi) => {
-        const me = await spotifyApi.currentUser.profile();
+    const result = await handleSpotifyRequest(async (spotifyApi) => {
+      const me = await spotifyApi.currentUser.profile();
 
-        return await spotifyApi.playlists.createPlaylist(me.id, {
-          name,
-          description,
-          public: isPublic,
-        });
+      return await spotifyApi.playlists.createPlaylist(me.id, {
+        name,
+        description,
+        public: isPublic,
       });
+    });
 
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `Successfully created playlist "${name}"\nPlaylist ID: ${result.id}`,
-          },
-        ],
-      };
-    } catch (error) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `Error creating playlist: ${error instanceof Error ? error.message : String(error)
-              }`,
-          },
-        ],
-      };
-    }
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Successfully created playlist "${name}"\nPlaylist ID: ${result.id}`,
+        },
+      ],
+    };
   },
 };
 
-// Add tracks to a playlist
 export const addTracksToPlaylist: tool<{
   playlistId: z.ZodString;
   trackIds: z.ZodArray<z.ZodString>;

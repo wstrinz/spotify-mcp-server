@@ -141,7 +141,7 @@ export const searchSpotify: tool<{
   },
 };
 
-// Get currently playing track
+
 export const getNowPlaying: tool<{}> = {
   name: 'getNowPlaying',
   description: 'Get information about the currently playing track on Spotify',
