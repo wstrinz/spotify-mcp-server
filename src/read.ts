@@ -2,6 +2,7 @@ import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/proto
 import { z } from 'zod';
 import type { tool } from './types.js';
 import { formatDuration, handleSpotifyRequest } from './utils.js';
+import type { MaxInt } from '@spotify/web-api-ts-sdk';
 
 interface SpotifyArtist {
   id: string;
@@ -44,7 +45,6 @@ function isTrack(item: any): item is SpotifyTrack {
   );
 }
 
-// Search for tracks, albums, artists, or playlists
 export const searchSpotify: tool<{
   query: z.ZodString;
   type: z.ZodEnum<['track', 'album', 'artist', 'playlist']>;
@@ -71,7 +71,6 @@ export const searchSpotify: tool<{
 
     try {
       const results = await handleSpotifyRequest(async (spotifyApi) => {
-
         const limitValue = limit <= 50 ? limit : 50;
         const limitStr = limitValue.toString();
         return await spotifyApi.search(
@@ -141,8 +140,7 @@ export const searchSpotify: tool<{
   },
 };
 
-
-export const getNowPlaying: tool<{}> = {
+export const getNowPlaying: tool<Record<string, never>> = {
   name: 'getNowPlaying',
   description: 'Get information about the currently playing track on Spotify',
   schema: {},
@@ -288,69 +286,56 @@ export const getPlaylistTracks: tool<{
     limit: z
       .number()
       .min(1)
-      .max(100)
+      .max(50)
       .optional()
-      .describe('Maximum number of tracks to return (1-100)'),
+      .describe('Maximum number of tracks to return (1-50)'),
   },
   handler: async (args, extra: RequestHandlerExtra) => {
     const { playlistId, limit = 50 } = args;
 
-    try {
-      const playlistTracks = await handleSpotifyRequest(async (spotifyApi) => {
-        return await spotifyApi.playlists.getPlaylistItems(
-          playlistId,
-          undefined,
-          limit.toString(),
-        );
-      });
+    const playlistTracks = await handleSpotifyRequest(async (spotifyApi) => {
+      return await spotifyApi.playlists.getPlaylistItems(
+        playlistId,
+        undefined,
+        undefined,
+        limit as MaxInt<50>,
+      );
+    });
 
-      if (playlistTracks.items.length === 0) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: "This playlist doesn't have any tracks",
-            },
-          ],
-        };
-      }
-
-      const formattedTracks = playlistTracks.items
-        .map((item, i) => {
-          const track = item.track;
-          if (!track) return `${i + 1}. [Removed track]`;
-
-          if (isTrack(track)) {
-            const artists = track.artists.map((a) => a.name).join(', ');
-            const duration = formatDuration(track.duration_ms);
-            return `${i + 1}. "${track.name
-              }" by ${artists} (${duration}) - ID: ${track.id}`;
-          } else {
-            // Handle non-track items safely
-            return `${i + 1}. Unknown item`;
-          }
-        })
-        .join('\n');
-
+    if ((playlistTracks.items?.length ?? 0) === 0) {
       return {
         content: [
           {
             type: 'text',
-            text: `# Tracks in Playlist\n\n${formattedTracks}`,
-          },
-        ],
-      };
-    } catch (error) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `Error getting playlist tracks: ${error instanceof Error ? error.message : String(error)
-              }`,
+            text: "This playlist doesn't have any tracks",
           },
         ],
       };
     }
+
+    const formattedTracks = playlistTracks.items
+      .map((item, i) => {
+        const { track } = item;
+        if (!track) return `${i + 1}. [Removed track]`;
+
+        if (isTrack(track)) {
+          const artists = track.artists.map((a) => a.name).join(', ');
+          const duration = formatDuration(track.duration_ms);
+          return `${i + 1}. "${track.name}" by ${artists} (${duration}) - ID: ${track.id}`;
+        }
+
+        return `${i + 1}. Unknown item`;
+      })
+      .join('\n');
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `# Tracks in Playlist\n\n${formattedTracks}`,
+        },
+      ],
+    };
   },
 };
 
