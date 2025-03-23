@@ -30,17 +30,17 @@ const searchSpotify: tool<{
       ),
     limit: z
       .number()
-      .min(10)
+      .min(1)
       .max(50)
       .optional()
       .describe('Maximum number of results to return (10-50)'),
   },
   handler: async (args, extra: RequestHandlerExtra) => {
-    const { query, type, limit = 10 } = args;
+    const { query, type, limit } = args;
+    const limitValue = limit ?? 10;
 
     try {
       const results = await handleSpotifyRequest(async (spotifyApi) => {
-        const limitValue = limit <= 50 ? limit : 50;
         return await spotifyApi.search(
           query,
           [type],
