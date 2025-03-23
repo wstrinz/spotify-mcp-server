@@ -281,11 +281,12 @@ export async function handleSpotifyRequest<T>(
     const spotifyApi = createSpotifyApi();
     return await action(spotifyApi);
   } catch (error) {
-    // Skip "Unexpected token / invalid JSON" errors as these are actually successful operations
+    // Skip JSON parsing errors as these are actually successful operations
     const errorMessage = error instanceof Error ? error.message : String(error);
     if (
       errorMessage.includes('Unexpected token') ||
-      errorMessage.includes('Unexpected non-whitespace character')
+      errorMessage.includes('Unexpected non-whitespace character') ||
+      errorMessage.includes('Exponent part is missing a number in JSON')
     ) {
       return undefined as T;
     }

@@ -270,6 +270,35 @@ export const addTracksToPlaylist: tool<{
   },
 };
 
+export const resumePlayback: tool<{
+  deviceId: z.ZodOptional<z.ZodString>;
+}> = {
+  name: 'resumePlayback',
+  description: 'Resume Spotify playback on the active device',
+  schema: {
+    deviceId: z
+      .string()
+      .optional()
+      .describe('The Spotify device ID to resume playback on'),
+  },
+  handler: async (args, extra: RequestHandlerExtra) => {
+    const { deviceId } = args;
+
+    await handleSpotifyRequest(async (spotifyApi) => {
+      await spotifyApi.player.startResumePlayback(deviceId || '');
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: 'Playback resumed',
+        },
+      ],
+    };
+  },
+};
+
 export const playTools = [
   playMusic,
   pausePlayback,
@@ -277,4 +306,5 @@ export const playTools = [
   skipToPrevious,
   createPlaylist,
   addTracksToPlaylist,
+  resumePlayback,
 ];
