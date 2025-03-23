@@ -5,8 +5,9 @@
 
 A lightweight [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that enables AI assistants like Cursor & Claude to control Spotify playback and manage playlists.
 
-# Table of Contents
-
+<details>
+<summary>Contents</summary>
+  
 - [Example Interactions](#example-interactions)
 - [Tools](#tools)
   - [Read Operations](#read-operations)
@@ -18,14 +19,14 @@ A lightweight [Model Context Protocol (MCP)](https://modelcontextprotocol.io) se
   - [Spotify API Configuration](#spotify-api-configuration)
   - [Authentication Process](#authentication-process)
 - [Integrating with Claude Desktop and Cursor](#integrating-with-claude-desktop-and-cursor)
+- 
+</details>
 
 ## Example Interactions
 
-- "Play the song 'Bohemian Rhapsody'"
-- "Search Spotify for albums by Taylor Swift"
-- "Create a playlist of indie rock songs"
-- "Get my current playback and pause it"
-- "Add these songs to my workout playlist"
+- _"Play Elvis's first song"_
+- _"Create a Taylor Swift / Slipknot fusion playlist"_
+- _"Copy all the techno tracks from my workout playlist to my work playlist"_
 
 ## Tools
 
