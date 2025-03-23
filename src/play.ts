@@ -1,7 +1,77 @@
+import { handleSpotifyRequest } from './utils.js';
 import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import { z } from 'zod';
 import type { tool } from './types.js';
-import { handleSpotifyRequest } from './utils.js';
+
+export const playMusic: tool<{
+  uri: z.ZodOptional<z.ZodString>;
+  type: z.ZodOptional<z.ZodEnum<['track', 'album', 'artist', 'playlist']>>;
+  id: z.ZodOptional<z.ZodString>;
+  deviceId: z.ZodOptional<z.ZodString>;
+}> = {
+  name: 'playMusic',
+  description: 'Start playing a Spotify track, album, artist, or playlist',
+  schema: {
+    uri: z
+      .string()
+      .optional()
+      .describe('The Spotify URI to play (overrides type and id)'),
+    type: z
+      .enum(['track', 'album', 'artist', 'playlist'])
+      .optional()
+      .describe('The type of item to play'),
+    id: z.string().optional().describe('The Spotify ID of the item to play'),
+    deviceId: z
+      .string()
+      .optional()
+      .describe('The Spotify device ID to play on'),
+  },
+  handler: async (args, extra: RequestHandlerExtra) => {
+    const { uri, type, id, deviceId } = args;
+
+    if (!uri && (!type || !id)) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: Must provide either a URI or both a type and ID',
+            isError: true,
+          },
+        ],
+      };
+    }
+
+    let spotifyUri = uri;
+    if (!spotifyUri && type && id) {
+      spotifyUri = `spotify:${type}:${id}`;
+    }
+
+    await handleSpotifyRequest(async (spotifyApi) => {
+      const device = deviceId || '';
+
+      if (!spotifyUri) {
+        await spotifyApi.player.startResumePlayback(device);
+        return;
+      }
+
+      if (type === 'track') {
+        await spotifyApi.player.startResumePlayback(device, undefined, [spotifyUri]);
+      } else {
+        await spotifyApi.player.startResumePlayback(device, spotifyUri);
+      }
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Started playing ${type || 'music'} ${id ? `(ID: ${id})` : ''
+            }`,
+        },
+      ],
+    };
+  },
+};
 
 export const pausePlayback: tool<{
   deviceId: z.ZodOptional<z.ZodString>;
@@ -46,7 +116,6 @@ export const skipToNext: tool<{
   handler: async (args, extra: RequestHandlerExtra) => {
     const { deviceId } = args;
 
-
     await handleSpotifyRequest(async (spotifyApi) => {
       await spotifyApi.player.skipToNext(deviceId || '');
     });
@@ -76,7 +145,6 @@ export const skipToPrevious: tool<{
   },
   handler: async (args, extra: RequestHandlerExtra) => {
     const { deviceId } = args;
-
 
     await handleSpotifyRequest(async (spotifyApi) => {
       await spotifyApi.player.skipToPrevious(deviceId || '');
@@ -200,6 +268,7 @@ export const addTracksToPlaylist: tool<{
 };
 
 export const playTools = [
+  playMusic,
   pausePlayback,
   skipToNext,
   skipToPrevious,
