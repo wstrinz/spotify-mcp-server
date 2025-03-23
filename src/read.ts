@@ -222,56 +222,43 @@ export const getMyPlaylists: tool<{
       .describe('Maximum number of playlists to return (1-50)'),
   },
   handler: async (args, extra: RequestHandlerExtra) => {
-    const { limit = 20 } = args;
+    const { limit = 50 } = args;
 
-    try {
-      const playlists = await handleSpotifyRequest(async (spotifyApi) => {
-        // The API expects the limit as a specific type (likely enum of numbers)
-        // Cast it to any to bypass the TypeScript error
-        return await spotifyApi.currentUser.playlists.playlists(limit as any);
-      });
 
-      if (playlists.items.length === 0) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: "You don't have any playlists on Spotify",
-            },
-          ],
-        };
-      }
+    const playlists = await handleSpotifyRequest(async (spotifyApi) => {
+      return await spotifyApi.currentUser.playlists.playlists(limit as MaxInt<50>);
+    });
 
-      const formattedPlaylists = playlists.items
-        .map((playlist, i) => {
-          const tracksTotal =
-            playlist.tracks && playlist.tracks.total
-              ? playlist.tracks.total
-              : 0;
-          return `${i + 1}. "${playlist.name}" (${tracksTotal} tracks) - ID: ${playlist.id
-            }`;
-        })
-        .join('\n');
-
+    if (playlists.items.length === 0) {
       return {
         content: [
           {
             type: 'text',
-            text: `# Your Spotify Playlists\n\n${formattedPlaylists}`,
-          },
-        ],
-      };
-    } catch (error) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `Error getting playlists: ${error instanceof Error ? error.message : String(error)
-              }`,
+            text: "You don't have any playlists on Spotify",
           },
         ],
       };
     }
+
+    const formattedPlaylists = playlists.items
+      .map((playlist, i) => {
+        const tracksTotal =
+          playlist.tracks?.total
+            ? playlist.tracks.total
+            : 0;
+        return `${i + 1}. "${playlist.name}" (${tracksTotal} tracks) - ID: ${playlist.id
+          }`;
+      })
+      .join('\n');
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `# Your Spotify Playlists\n\n${formattedPlaylists}`,
+        },
+      ],
+    };
   },
 };
 
