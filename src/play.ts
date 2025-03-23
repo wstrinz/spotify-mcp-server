@@ -3,7 +3,7 @@ import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/proto
 import { z } from 'zod';
 import type { tool } from './types.js';
 
-export const playMusic: tool<{
+const playMusic: tool<{
   uri: z.ZodOptional<z.ZodString>;
   type: z.ZodOptional<z.ZodEnum<['track', 'album', 'artist', 'playlist']>>;
   id: z.ZodOptional<z.ZodString>;
@@ -74,7 +74,7 @@ export const playMusic: tool<{
   },
 };
 
-export const pausePlayback: tool<{
+const pausePlayback: tool<{
   deviceId: z.ZodOptional<z.ZodString>;
 }> = {
   name: 'pausePlayback',
@@ -103,7 +103,7 @@ export const pausePlayback: tool<{
   },
 };
 
-export const skipToNext: tool<{
+const skipToNext: tool<{
   deviceId: z.ZodOptional<z.ZodString>;
 }> = {
   name: 'skipToNext',
@@ -132,7 +132,7 @@ export const skipToNext: tool<{
   },
 };
 
-export const skipToPrevious: tool<{
+const skipToPrevious: tool<{
   deviceId: z.ZodOptional<z.ZodString>;
 }> = {
   name: 'skipToPrevious',
@@ -162,7 +162,7 @@ export const skipToPrevious: tool<{
   },
 };
 
-export const createPlaylist: tool<{
+const createPlaylist: tool<{
   name: z.ZodString;
   description: z.ZodOptional<z.ZodString>;
   public: z.ZodOptional<z.ZodBoolean>;
@@ -204,7 +204,7 @@ export const createPlaylist: tool<{
   },
 };
 
-export const addTracksToPlaylist: tool<{
+const addTracksToPlaylist: tool<{
   playlistId: z.ZodString;
   trackIds: z.ZodArray<z.ZodString>;
   position: z.ZodOptional<z.ZodNumber>;
@@ -270,7 +270,7 @@ export const addTracksToPlaylist: tool<{
   },
 };
 
-export const resumePlayback: tool<{
+const resumePlayback: tool<{
   deviceId: z.ZodOptional<z.ZodString>;
 }> = {
   name: 'resumePlayback',

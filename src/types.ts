@@ -22,3 +22,23 @@ export type tool<Args extends z.ZodRawShape> = {
         }>;
       };
 };
+
+export interface SpotifyArtist {
+  id: string;
+  name: string;
+}
+
+export interface SpotifyAlbum {
+  id: string;
+  name: string;
+  artists: SpotifyArtist[];
+}
+
+export interface SpotifyTrack {
+  id: string;
+  name: string;
+  type: string;
+  duration_ms: number;
+  artists: SpotifyArtist[];
+  album: SpotifyAlbum;
+}

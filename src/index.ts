@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { playTools } from './play.js';
 import { readTools } from './read.js';
 
-export const server = new McpServer({
+const server = new McpServer({
   name: 'spotify-controller',
   version: '1.0.0',
 });

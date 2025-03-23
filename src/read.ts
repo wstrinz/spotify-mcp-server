@@ -1,28 +1,8 @@
 import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
-import { z } from 'zod';
-import type { tool } from './types.js';
-import { formatDuration, handleSpotifyRequest } from './utils.js';
 import type { MaxInt } from '@spotify/web-api-ts-sdk';
-
-interface SpotifyArtist {
-  id: string;
-  name: string;
-}
-
-interface SpotifyAlbum {
-  id: string;
-  name: string;
-  artists: SpotifyArtist[];
-}
-
-interface SpotifyTrack {
-  id: string;
-  name: string;
-  type: string;
-  duration_ms: number;
-  artists: SpotifyArtist[];
-  album: SpotifyAlbum;
-}
+import { z } from 'zod';
+import type { SpotifyTrack, tool } from './types.js';
+import { formatDuration, handleSpotifyRequest } from './utils.js';
 
 function isTrack(item: any): item is SpotifyTrack {
   return (
@@ -34,7 +14,7 @@ function isTrack(item: any): item is SpotifyTrack {
   );
 }
 
-export const searchSpotify: tool<{
+const searchSpotify: tool<{
   query: z.ZodString;
   type: z.ZodEnum<['track', 'album', 'artist', 'playlist']>;
   limit: z.ZodOptional<z.ZodNumber>;
@@ -132,7 +112,7 @@ export const searchSpotify: tool<{
   },
 };
 
-export const getNowPlaying: tool<Record<string, never>> = {
+const getNowPlaying: tool<Record<string, never>> = {
   name: 'getNowPlaying',
   description: 'Get information about the currently playing track on Spotify',
   schema: {},
@@ -201,7 +181,7 @@ export const getNowPlaying: tool<Record<string, never>> = {
   },
 };
 
-export const getMyPlaylists: tool<{
+const getMyPlaylists: tool<{
   limit: z.ZodOptional<z.ZodNumber>;
 }> = {
   name: 'getMyPlaylists',
@@ -254,7 +234,7 @@ export const getMyPlaylists: tool<{
   },
 };
 
-export const getPlaylistTracks: tool<{
+const getPlaylistTracks: tool<{
   playlistId: z.ZodString;
   limit: z.ZodOptional<z.ZodNumber>;
 }> = {
