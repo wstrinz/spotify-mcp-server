@@ -1,9 +1,10 @@
 import { SpotifyApi } from '@spotify/web-api-ts-sdk';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import http from 'node:http';
-import open from 'open';
 import path from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
+import open from 'open';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONFIG_FILE = path.join(__dirname, '../spotify-config.json');
@@ -74,15 +75,15 @@ export function createSpotifyApi(): SpotifyApi {
 }
 
 function generateRandomString(length: number): string {
-  let text = '';
-  const possible =
-    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-
-  for (let i = 0; i < length; i++) {
-    text += possible.charAt(Math.floor(Math.random() * possible.length));
-  }
-
-  return text;
+  const array = new Uint8Array(length);
+  crypto.getRandomValues(array);
+  return Array.from(array)
+    .map((b) =>
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'.charAt(
+        b % 62,
+      ),
+    )
+    .join('');
 }
 
 function base64Encode(str: string): string {
