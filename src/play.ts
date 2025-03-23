@@ -55,7 +55,9 @@ export const playMusic: tool<{
       }
 
       if (type === 'track') {
-        await spotifyApi.player.startResumePlayback(device, undefined, [spotifyUri]);
+        await spotifyApi.player.startResumePlayback(device, undefined, [
+          spotifyUri,
+        ]);
       } else {
         await spotifyApi.player.startResumePlayback(device, spotifyUri);
       }
@@ -65,8 +67,7 @@ export const playMusic: tool<{
       content: [
         {
           type: 'text',
-          text: `Started playing ${type || 'music'} ${id ? `(ID: ${id})` : ''
-            }`,
+          text: `Started playing ${type || 'music'} ${id ? `(ID: ${id})` : ''}`,
         },
       ],
     };
@@ -248,8 +249,9 @@ export const addTracksToPlaylist: tool<{
         content: [
           {
             type: 'text',
-            text: `Successfully added ${trackIds.length} track${trackIds.length === 1 ? '' : 's'
-              } to playlist (ID: ${playlistId})`,
+            text: `Successfully added ${trackIds.length} track${
+              trackIds.length === 1 ? '' : 's'
+            } to playlist (ID: ${playlistId})`,
           },
         ],
       };
@@ -258,8 +260,9 @@ export const addTracksToPlaylist: tool<{
         content: [
           {
             type: 'text',
-            text: `Error adding tracks to playlist: ${error instanceof Error ? error.message : String(error)
-              }`,
+            text: `Error adding tracks to playlist: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
           },
         ],
       };

@@ -24,17 +24,6 @@ interface SpotifyTrack {
   album: SpotifyAlbum;
 }
 
-interface SpotifyPlaylist {
-  id: string;
-  name: string;
-  owner: {
-    display_name: string | null;
-  };
-  tracks: {
-    total: number;
-  };
-}
-
 function isTrack(item: any): item is SpotifyTrack {
   return (
     item &&
@@ -72,12 +61,11 @@ export const searchSpotify: tool<{
     try {
       const results = await handleSpotifyRequest(async (spotifyApi) => {
         const limitValue = limit <= 50 ? limit : 50;
-        const limitStr = limitValue.toString();
         return await spotifyApi.search(
           query,
           [type],
           undefined,
-          limitStr as any,
+          limitValue as MaxInt<50>,
         );
       });
 
@@ -88,8 +76,9 @@ export const searchSpotify: tool<{
           .map((track, i) => {
             const artists = track.artists.map((a) => a.name).join(', ');
             const duration = formatDuration(track.duration_ms);
-            return `${i + 1}. "${track.name
-              }" by ${artists} (${duration}) - ID: ${track.id}`;
+            return `${i + 1}. "${
+              track.name
+            }" by ${artists} (${duration}) - ID: ${track.id}`;
           })
           .join('\n');
       } else if (type === 'album' && results.albums) {
@@ -108,9 +97,11 @@ export const searchSpotify: tool<{
       } else if (type === 'playlist' && results.playlists) {
         formattedResults = results.playlists.items
           .map((playlist, i) => {
-            return `${i + 1}. "${playlist?.name ?? 'Unknown Playlist'} (${playlist?.description ?? 'No description'
-              } tracks)" by ${playlist?.owner?.display_name} - ID: ${playlist?.id
-              }`;
+            return `${i + 1}. "${playlist?.name ?? 'Unknown Playlist'} (${
+              playlist?.description ?? 'No description'
+            } tracks)" by ${playlist?.owner?.display_name} - ID: ${
+              playlist?.id
+            }`;
           })
           .join('\n');
       }
@@ -131,8 +122,9 @@ export const searchSpotify: tool<{
         content: [
           {
             type: 'text',
-            text: `Error searching for ${type}s: ${error instanceof Error ? error.message : String(error)
-              }`,
+            text: `Error searching for ${type}s: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
           },
         ],
       };
@@ -199,8 +191,9 @@ export const getNowPlaying: tool<Record<string, never>> = {
         content: [
           {
             type: 'text',
-            text: `Error getting current track: ${error instanceof Error ? error.message : String(error)
-              }`,
+            text: `Error getting current track: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
           },
         ],
       };
@@ -224,9 +217,10 @@ export const getMyPlaylists: tool<{
   handler: async (args, extra: RequestHandlerExtra) => {
     const { limit = 50 } = args;
 
-
     const playlists = await handleSpotifyRequest(async (spotifyApi) => {
-      return await spotifyApi.currentUser.playlists.playlists(limit as MaxInt<50>);
+      return await spotifyApi.currentUser.playlists.playlists(
+        limit as MaxInt<50>,
+      );
     });
 
     if (playlists.items.length === 0) {
@@ -242,12 +236,10 @@ export const getMyPlaylists: tool<{
 
     const formattedPlaylists = playlists.items
       .map((playlist, i) => {
-        const tracksTotal =
-          playlist.tracks?.total
-            ? playlist.tracks.total
-            : 0;
-        return `${i + 1}. "${playlist.name}" (${tracksTotal} tracks) - ID: ${playlist.id
-          }`;
+        const tracksTotal = playlist.tracks?.total ? playlist.tracks.total : 0;
+        return `${i + 1}. "${playlist.name}" (${tracksTotal} tracks) - ID: ${
+          playlist.id
+        }`;
       })
       .join('\n');
 

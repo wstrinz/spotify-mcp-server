@@ -33,7 +33,8 @@ export function loadSpotifyConfig(): SpotifyConfig {
     return config;
   } catch (error) {
     throw new Error(
-      `Failed to parse Spotify configuration: ${error instanceof Error ? error.message : String(error)
+      `Failed to parse Spotify configuration: ${
+        error instanceof Error ? error.message : String(error)
       }`,
     );
   }
@@ -60,10 +61,7 @@ export function createSpotifyApi(): SpotifyApi {
       refresh_token: config.refreshToken,
     };
 
-    cachedSpotifyApi = SpotifyApi.withAccessToken(
-      config.clientId,
-      accessToken,
-    );
+    cachedSpotifyApi = SpotifyApi.withAccessToken(config.clientId, accessToken);
     return cachedSpotifyApi;
   }
 
@@ -86,8 +84,6 @@ function generateRandomString(length: number): string {
 
   return text;
 }
-
-
 
 function base64Encode(str: string): string {
   return Buffer.from(str).toString('base64');
@@ -287,11 +283,13 @@ export async function handleSpotifyRequest<T>(
   } catch (error) {
     // Skip "Unexpected token / invalid JSON" errors as these are actually successful operations
     const errorMessage = error instanceof Error ? error.message : String(error);
-    if (errorMessage.includes('Unexpected token') || errorMessage.includes('Unexpected non-whitespace character')) {
+    if (
+      errorMessage.includes('Unexpected token') ||
+      errorMessage.includes('Unexpected non-whitespace character')
+    ) {
       return undefined as T;
     }
     // Rethrow other errors
     throw error;
   }
 }
-

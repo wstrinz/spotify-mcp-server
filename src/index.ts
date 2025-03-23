@@ -1,11 +1,11 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { playTools } from "./play.js";
-import { readTools } from "./read.js";
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { playTools } from './play.js';
+import { readTools } from './read.js';
 
 export const server = new McpServer({
-  name: "spotify-controller",
-  version: "1.0.0",
+  name: 'spotify-controller',
+  version: '1.0.0',
 });
 
 [...readTools, ...playTools].forEach((tool) => {
@@ -15,10 +15,10 @@ export const server = new McpServer({
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.log("Spotify MCP Server running on stdio");
+  console.log('Spotify MCP Server running on stdio');
 }
 
 main().catch((error) => {
-  console.error("Fatal error in main():", error);
+  console.error('Fatal error in main():', error);
   process.exit(1);
 });
