@@ -356,10 +356,70 @@ const getRecentlyPlayed: tool<{
   },
 };
 
+const getLikedTracks: tool<{
+  limit: z.ZodOptional<z.ZodNumber>;
+}> = {
+  name: 'getLikedTracks',
+  description: "Get a list of liked tracks from the user's library on Spotify",
+  schema: {
+    limit: z
+      .number()
+      .min(1)
+      .max(50)
+      .optional()
+      .describe('Maximum number of tracks to return (1-50)'),
+  },
+  handler: async (args, _extra: SpotifyHandlerExtra) => {
+    const { limit = 50 } = args;
+
+    const likedTracks = await handleSpotifyRequest(async (spotifyApi) => {
+      return await spotifyApi.currentUser.tracks.savedTracks(
+        limit as MaxInt<50>,
+      );
+    });
+
+    if (likedTracks.items.length === 0) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: "You don't have any liked tracks on Spotify",
+          },
+        ],
+      };
+    }
+
+    const formattedTracks = likedTracks.items
+      .map((item, i) => {
+        const track = item.track;
+        if (!track) return `${i + 1}. [Removed track]`;
+
+        if (isTrack(track)) {
+          const artists = track.artists.map((a) => a.name).join(', ');
+          const duration = formatDuration(track.duration_ms);
+          return `${i + 1}. "${track.name}" by ${artists} (${duration}) - ID: ${track.id}`;
+        }
+
+        return `${i + 1}. Unknown item`;
+      })
+      .join('\n');
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `# Your Liked Tracks\n\n${formattedTracks}`,
+        },
+      ],
+    };
+  },
+};
+
 export const readTools = [
   searchSpotify,
   getNowPlaying,
   getMyPlaylists,
   getPlaylistTracks,
   getRecentlyPlayed,
+  getLikedTracks,
 ];
