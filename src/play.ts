@@ -359,6 +359,109 @@ const addToQueue: tool<{
   },
 };
 
+const reorderPlaylistTracks: tool<{
+  playlistId: z.ZodString;
+  rangeStart: z.ZodNumber;
+  insertBefore: z.ZodNumber;
+  rangeLength: z.ZodOptional<z.ZodNumber>;
+  snapshotId: z.ZodOptional<z.ZodString>;
+}> = {
+  name: 'reorderPlaylistTracks',
+  description:
+    'Reorder tracks in a Spotify playlist by moving a range of tracks to a new position',
+  schema: {
+    playlistId: z.string().describe('The Spotify ID of the playlist'),
+    rangeStart: z
+      .number()
+      .nonnegative()
+      .describe('Position of the first track to reorder (0-based index)'),
+    insertBefore: z
+      .number()
+      .nonnegative()
+      .describe('Position where tracks should be inserted (0-based index)'),
+    rangeLength: z
+      .number()
+      .positive()
+      .optional()
+      .describe('Number of tracks to reorder (defaults to 1)'),
+    snapshotId: z
+      .string()
+      .optional()
+      .describe('Playlist snapshot ID for version control'),
+  },
+  handler: async (args, _extra: SpotifyHandlerExtra) => {
+    const {
+      playlistId,
+      rangeStart,
+      insertBefore,
+      rangeLength = 1,
+      snapshotId,
+    } = args;
+
+    if (rangeStart === insertBefore) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: rangeStart and insertBefore cannot be the same position',
+          },
+        ],
+      };
+    }
+
+    try {
+      const result = await handleSpotifyRequest(async (spotifyApi) => {
+        const requestBody: {
+          range_start: number;
+          insert_before: number;
+          range_length?: number;
+          snapshot_id?: string;
+        } = {
+          range_start: rangeStart,
+          insert_before: insertBefore,
+        };
+
+        if (rangeLength !== 1) {
+          requestBody.range_length = rangeLength;
+        }
+
+        if (snapshotId) {
+          requestBody.snapshot_id = snapshotId;
+        }
+
+        return await spotifyApi.playlists.updatePlaylistItems(
+          playlistId,
+          requestBody,
+        );
+      });
+
+      const trackWord = rangeLength === 1 ? 'track' : 'tracks';
+      const fromPosition = rangeStart + 1; // Convert to 1-based for user display
+      const toPosition = insertBefore + 1;
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Successfully reordered ${rangeLength} ${trackWord} from position ${fromPosition} to position ${toPosition}\nNew snapshot ID: ${result.snapshot_id}`,
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Error reordering playlist tracks: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          },
+        ],
+      };
+    }
+  },
+};
+
 export const playTools = [
   playMusic,
   pausePlayback,
@@ -368,4 +471,5 @@ export const playTools = [
   addTracksToPlaylist,
   resumePlayback,
   addToQueue,
+  reorderPlaylistTracks,
 ];
