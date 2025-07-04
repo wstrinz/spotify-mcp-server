@@ -358,6 +358,7 @@ const getRecentlyPlayed: tool<{
 
 const getLikedTracks: tool<{
   limit: z.ZodOptional<z.ZodNumber>;
+  offset: z.ZodOptional<z.ZodNumber>;
 }> = {
   name: 'getLikedTracks',
   description: "Get a list of liked tracks from the user's library on Spotify",
@@ -368,13 +369,19 @@ const getLikedTracks: tool<{
       .max(50)
       .optional()
       .describe('Maximum number of tracks to return (1-50)'),
+    offset: z
+      .number()
+      .min(0)
+      .optional()
+      .describe('Index of the first track to return (0-based, for pagination)'),
   },
   handler: async (args, _extra: SpotifyHandlerExtra) => {
-    const { limit = 50 } = args;
+    const { limit = 50, offset = 0 } = args;
 
     const likedTracks = await handleSpotifyRequest(async (spotifyApi) => {
       return await spotifyApi.currentUser.tracks.savedTracks(
         limit as MaxInt<50>,
+        offset,
       );
     });
 
@@ -391,24 +398,29 @@ const getLikedTracks: tool<{
 
     const formattedTracks = likedTracks.items
       .map((item, i) => {
+        const globalIndex = offset + i + 1;
         const track = item.track;
-        if (!track) return `${i + 1}. [Removed track]`;
+        if (!track) return `${globalIndex}. [Removed track]`;
 
         if (isTrack(track)) {
           const artists = track.artists.map((a) => a.name).join(', ');
           const duration = formatDuration(track.duration_ms);
-          return `${i + 1}. "${track.name}" by ${artists} (${duration}) - ID: ${track.id}`;
+          return `${globalIndex}. "${track.name}" by ${artists} (${duration}) - ID: ${track.id}`;
         }
 
-        return `${i + 1}. Unknown item`;
+        return `${globalIndex}. Unknown item`;
       })
       .join('\n');
 
+    const startIndex = offset + 1;
+    const endIndex = offset + likedTracks.items.length;
+    const paginationInfo = `Showing tracks ${startIndex}-${endIndex} of ${likedTracks.total}`;
+    
     return {
       content: [
         {
           type: 'text',
-          text: `# Your Liked Tracks\n\n${formattedTracks}`,
+          text: `# Your Liked Tracks\n\n${paginationInfo}\n\n${formattedTracks}`,
         },
       ],
     };
