@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { SpotifyHandlerExtra, tool } from './types.js';
-import { handleSpotifyRequest } from './utils.js';
+import { handleSpotifyRequest, handleAuthenticatedSpotifyRequest } from './utils.js';
+import { getCurrentAuth } from './server/auth-store.js';
 
 const playMusic: tool<{
   uri: z.ZodOptional<z.ZodString>;
@@ -25,7 +26,7 @@ const playMusic: tool<{
       .optional()
       .describe('The Spotify device ID to play on'),
   },
-  handler: async (args, _extra: SpotifyHandlerExtra) => {
+  handler: async (args, extra: SpotifyHandlerExtra) => {
     const { uri, type, id, deviceId } = args;
 
     if (!(uri || (type && id))) {
@@ -40,27 +41,45 @@ const playMusic: tool<{
       };
     }
 
+    // Get current auth info
+    const authInfo = getCurrentAuth();
+    
+    if (!authInfo?.spotifyAccessToken) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: No authentication found. Please authenticate first.',
+          },
+        ],
+      };
+    }
+
     let spotifyUri = uri;
     if (!spotifyUri && type && id) {
       spotifyUri = `spotify:${type}:${id}`;
     }
 
-    await handleSpotifyRequest(async (spotifyApi) => {
-      const device = deviceId || '';
+    await handleAuthenticatedSpotifyRequest(
+      authInfo.spotifyAccessToken,
+      authInfo.spotifyRefreshToken,
+      async (spotifyApi) => {
+        const device = deviceId || '';
 
-      if (!spotifyUri) {
-        await spotifyApi.player.startResumePlayback(device);
-        return;
-      }
+        if (!spotifyUri) {
+          await spotifyApi.player.startResumePlayback(device);
+          return;
+        }
 
-      if (type === 'track') {
-        await spotifyApi.player.startResumePlayback(device, undefined, [
-          spotifyUri,
-        ]);
-      } else {
-        await spotifyApi.player.startResumePlayback(device, spotifyUri);
-      }
-    });
+        if (type === 'track') {
+          await spotifyApi.player.startResumePlayback(device, undefined, [
+            spotifyUri,
+          ]);
+        } else {
+          await spotifyApi.player.startResumePlayback(device, spotifyUri);
+        }
+      },
+    );
 
     return {
       content: [
@@ -84,12 +103,30 @@ const pausePlayback: tool<{
       .optional()
       .describe('The Spotify device ID to pause playback on'),
   },
-  handler: async (args, _extra: SpotifyHandlerExtra) => {
+  handler: async (args, extra: SpotifyHandlerExtra) => {
     const { deviceId } = args;
 
-    await handleSpotifyRequest(async (spotifyApi) => {
-      await spotifyApi.player.pausePlayback(deviceId || '');
-    });
+    // Get current auth info
+    const authInfo = getCurrentAuth();
+    
+    if (!authInfo?.spotifyAccessToken) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: No authentication found. Please authenticate first.',
+          },
+        ],
+      };
+    }
+
+    await handleAuthenticatedSpotifyRequest(
+      authInfo.spotifyAccessToken,
+      authInfo.spotifyRefreshToken,
+      async (spotifyApi) => {
+        await spotifyApi.player.pausePlayback(deviceId || '');
+      },
+    );
 
     return {
       content: [

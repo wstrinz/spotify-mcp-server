@@ -371,3 +371,113 @@ export async function handleSpotifyRequest<T>(
     throw error;
   }
 }
+
+/**
+ * Handle Spotify request with authenticated user tokens from OAuth
+ */
+export async function handleAuthenticatedSpotifyRequest<T>(
+  spotifyAccessToken: string,
+  spotifyRefreshToken: string | undefined,
+  action: (spotifyApi: SpotifyApi) => Promise<T>,
+): Promise<T> {
+  const config = loadSpotifyConfig();
+  
+  try {
+    const accessTokenObject = {
+      access_token: spotifyAccessToken,
+      token_type: 'Bearer' as const,
+      expires_in: 3600,
+      refresh_token: spotifyRefreshToken || '',
+    };
+
+    const spotifyApi = SpotifyApi.withAccessToken(config.clientId, accessTokenObject);
+    return await action(spotifyApi);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    // Skip JSON parsing errors as these are actually successful operations
+    if (
+      errorMessage.includes('Unexpected token') ||
+      errorMessage.includes('Unexpected non-whitespace character') ||
+      errorMessage.includes('Exponent part is missing a number in JSON')
+    ) {
+      return undefined as T;
+    }
+
+    // Check if it's a token expiration error and we have a refresh token
+    if (
+      spotifyRefreshToken &&
+      (errorMessage.includes('Bad or expired token') ||
+       errorMessage.includes('The access token expired') ||
+       errorMessage.includes('401'))
+    ) {
+      console.log('OAuth access token expired, attempting to refresh...');
+      try {
+        const newTokens = await refreshOAuthSpotifyToken(spotifyRefreshToken, config);
+        
+        // Update the auth store with new tokens
+        const { getCurrentAuth, updateCurrentAuth } = await import('./server/auth-store.js');
+        const currentAuth = getCurrentAuth();
+        if (currentAuth) {
+          updateCurrentAuth({
+            ...currentAuth,
+            spotifyAccessToken: newTokens.access_token,
+            spotifyRefreshToken: newTokens.refresh_token || currentAuth.spotifyRefreshToken,
+          });
+          console.log('✅ OAuth tokens refreshed and updated in auth store');
+        }
+        
+        // Retry the original request with fresh token
+        const newAccessTokenObject = {
+          access_token: newTokens.access_token,
+          token_type: 'Bearer' as const,
+          expires_in: 3600,
+          refresh_token: newTokens.refresh_token || spotifyRefreshToken,
+        };
+        
+        const newSpotifyApi = SpotifyApi.withAccessToken(config.clientId, newAccessTokenObject);
+        return await action(newSpotifyApi);
+      } catch (refreshError) {
+        throw new Error(
+          `OAuth token refresh failed: ${refreshError instanceof Error ? refreshError.message : String(refreshError)}. Please re-authenticate.`,
+        );
+      }
+    }
+
+    // Rethrow other errors
+    throw error;
+  }
+}
+
+/**
+ * Refresh OAuth Spotify tokens
+ */
+async function refreshOAuthSpotifyToken(
+  refreshToken: string,
+  config: SpotifyConfig,
+): Promise<{ access_token: string; refresh_token?: string }> {
+  const auth = Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64');
+
+  const response = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${auth}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.text();
+    throw new Error(`Failed to refresh OAuth token: ${response.status} - ${errorData}`);
+  }
+
+  const data = await response.json();
+  return {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token, // May or may not be rotated
+  };
+}

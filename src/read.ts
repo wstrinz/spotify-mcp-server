@@ -1,7 +1,8 @@
 import type { MaxInt } from '@spotify/web-api-ts-sdk';
 import { z } from 'zod';
 import type { SpotifyHandlerExtra, SpotifyTrack, tool } from './types.js';
-import { formatDuration, handleSpotifyRequest } from './utils.js';
+import { formatDuration, handleSpotifyRequest, handleAuthenticatedSpotifyRequest } from './utils.js';
+import { getCurrentAuth } from './server/auth-store.js';
 
 function isTrack(item: any): item is SpotifyTrack {
   return (
@@ -34,19 +35,37 @@ const searchSpotify: tool<{
       .optional()
       .describe('Maximum number of results to return (10-50)'),
   },
-  handler: async (args, _extra: SpotifyHandlerExtra) => {
+  handler: async (args, extra: SpotifyHandlerExtra) => {
     const { query, type, limit } = args;
     const limitValue = limit ?? 10;
 
     try {
-      const results = await handleSpotifyRequest(async (spotifyApi) => {
-        return await spotifyApi.search(
-          query,
-          [type],
-          undefined,
-          limitValue as MaxInt<50>,
-        );
-      });
+      // Get current auth info
+      const authInfo = getCurrentAuth();
+      
+      if (!authInfo?.spotifyAccessToken) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: 'Error: No authentication found. Please authenticate first.',
+            },
+          ],
+        };
+      }
+
+      const results = await handleAuthenticatedSpotifyRequest(
+        authInfo.spotifyAccessToken,
+        authInfo.spotifyRefreshToken,
+        async (spotifyApi) => {
+          return await spotifyApi.search(
+            query,
+            [type],
+            undefined,
+            limitValue as MaxInt<50>,
+          );
+        },
+      );
 
       let formattedResults = '';
 

@@ -51,3 +51,9 @@ export interface SpotifyTrack {
   artists: SpotifyArtist[];
   album: SpotifyAlbum;
 }
+
+export interface SpotifyAuthInfo {
+  userId: string;
+  spotifyAccessToken: string;
+  spotifyRefreshToken?: string;
+}

@@ -1,3 +1,4 @@
+import { config as loadDotenv } from 'dotenv';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import cors from 'cors';
@@ -5,9 +6,29 @@ import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { playTools } from './play.js';
 import { readTools } from './read.js';
+import { OAuthProvider } from './server/oauth.js';
+import { loadServerConfig } from './server/config.js';
+import { rateLimitMiddleware, validateProtocolVersion, requestSizeLimit } from './server/middleware.js';
+
+// Load environment variables from .env file
+loadDotenv();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Load server configuration
+const config = loadServerConfig();
+
+// Initialize OAuth provider
+const oauthProvider = new OAuthProvider({
+  ...config,
+  validRedirectUris: [
+    'http://localhost:8888/callback',
+    'https://localhost:8888/callback', 
+    'spotify://',
+    'claude-code://',
+  ],
+});
 
 // CORS configuration for MCP clients
 app.use(
@@ -19,7 +40,14 @@ app.use(
   }),
 );
 
+// Middleware
 app.use(express.json());
+app.use(rateLimitMiddleware());
+app.use(validateProtocolVersion);
+app.use(requestSizeLimit());
+
+// Setup OAuth routes
+oauthProvider.setupRoutes(app);
 
 // Transport management for MCP sessions
 const transports = new Map<string, StreamableHTTPServerTransport>();
@@ -30,13 +58,16 @@ const server = new McpServer({
   version: '1.0.0',
 });
 
+// Map to store session -> auth info
+const sessionAuthMap = new Map<string, any>();
+
 // Register all tools
 [...readTools, ...playTools].forEach((tool) => {
   server.tool(tool.name, tool.description, tool.schema, tool.handler);
 });
 
 // Clean MCP request handler
-const mcpHandler = async (req: express.Request, res: express.Response) => {
+const mcpHandler = async (req: express.Request & { auth?: any }, res: express.Response) => {
   try {
     const sessionId = req.headers['mcp-session-id'] as string;
     const isInitRequest = req.body?.method === 'initialize';
@@ -50,6 +81,20 @@ const mcpHandler = async (req: express.Request, res: express.Response) => {
         onsessioninitialized: (newSessionId) => {
           console.log(`MCP session initialized: ${newSessionId}`);
           transports.set(newSessionId, transport);
+          
+          // Store auth info for this session
+          if (req.auth?.extra) {
+            const authInfo = {
+              userId: req.auth.extra.userId,
+              spotifyAccessToken: req.auth.extra.spotifyAccessToken,
+              spotifyRefreshToken: req.auth.extra.spotifyRefreshToken,
+            };
+            
+            // Import authStore dynamically to avoid circular dependency
+            import('./server/auth-store.js').then(({ setAuth }) => {
+              setAuth(newSessionId, authInfo);
+            });
+          }
         },
       });
 
@@ -58,6 +103,11 @@ const mcpHandler = async (req: express.Request, res: express.Response) => {
         if (sid && transports.has(sid)) {
           console.log(`MCP session closed: ${sid}`);
           transports.delete(sid);
+          
+          // Clean up auth info
+          import('./server/auth-store.js').then(({ removeAuth }) => {
+            removeAuth(sid);
+          });
         }
       };
 
@@ -87,10 +137,10 @@ const mcpHandler = async (req: express.Request, res: express.Response) => {
 };
 
 
-// MCP endpoints without authentication for now
-app.post('/mcp', mcpHandler);
-app.get('/mcp', mcpHandler);
-app.delete('/mcp', mcpHandler);
+// MCP endpoints with authentication
+app.post('/mcp', oauthProvider.authMiddleware(), mcpHandler);
+app.get('/mcp', oauthProvider.authMiddleware(), mcpHandler);
+app.delete('/mcp', oauthProvider.authMiddleware(), mcpHandler);
 
 async function startServer() {
   try {
