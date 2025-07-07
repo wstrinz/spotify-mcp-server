@@ -18,27 +18,36 @@ export interface SpotifyConfig {
 }
 
 export function loadSpotifyConfig(): SpotifyConfig {
-  if (!fs.existsSync(CONFIG_FILE)) {
+  // Try to load from file first
+  if (fs.existsSync(CONFIG_FILE)) {
+    try {
+      const config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+      if (config.clientId && config.clientSecret && config.redirectUri) {
+        return config;
+      }
+    } catch (error) {
+      console.warn(`Failed to parse spotify-config.json, falling back to environment variables: ${error}`);
+    }
+  }
+
+  // Fall back to environment variables
+  const clientId = process.env.SPOTIFY_CLIENT_ID;
+  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+  const redirectUri = process.env.REDIRECT_URL;
+
+  if (!clientId || !clientSecret || !redirectUri) {
     throw new Error(
-      `Spotify configuration file not found at ${CONFIG_FILE}. Please create one with clientId, clientSecret, and redirectUri.`,
+      'Spotify configuration not found. Please provide either:\n' +
+      '1. A spotify-config.json file with clientId, clientSecret, and redirectUri, or\n' +
+      '2. Environment variables: SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, REDIRECT_URL'
     );
   }
 
-  try {
-    const config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-    if (!(config.clientId && config.clientSecret && config.redirectUri)) {
-      throw new Error(
-        'Spotify configuration must include clientId, clientSecret, and redirectUri.',
-      );
-    }
-    return config;
-  } catch (error) {
-    throw new Error(
-      `Failed to parse Spotify configuration: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    );
-  }
+  return {
+    clientId,
+    clientSecret,
+    redirectUri,
+  };
 }
 
 export function saveSpotifyConfig(config: SpotifyConfig): void {
