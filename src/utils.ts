@@ -333,9 +333,14 @@ async function refreshSpotifyToken(): Promise<void> {
 export async function handleSpotifyRequest<T>(
   action: (spotifyApi: SpotifyApi) => Promise<T>,
 ): Promise<T> {
+  const startTime = Date.now();
   try {
     const spotifyApi = createSpotifyApi();
-    return await action(spotifyApi);
+    console.log(`🎵 Spotify API request initiated`);
+    const result = await action(spotifyApi);
+    const duration = Date.now() - startTime;
+    console.log(`✅ Spotify API request completed | ${duration}ms`);
+    return result;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
@@ -368,6 +373,8 @@ export async function handleSpotifyRequest<T>(
     }
 
     // Rethrow other errors
+    const duration = Date.now() - startTime;
+    console.log(`❌ Spotify API request failed | ${duration}ms | Error: ${errorMessage}`);
     throw error;
   }
 }
@@ -381,6 +388,42 @@ export async function handleAuthenticatedSpotifyRequest<T>(
   action: (spotifyApi: SpotifyApi) => Promise<T>,
 ): Promise<T> {
   const config = loadSpotifyConfig();
+  const startTime = Date.now();
+  
+  // Extract request info for logging
+  const actionString = action.toString();
+  let requestInfo = 'Unknown';
+  
+  // Parse common Spotify API patterns
+  if (actionString.includes('getCurrentlyPlayingTrack')) {
+    requestInfo = 'GET /me/player/currently-playing';
+  } else if (actionString.includes('skipToNext')) {
+    requestInfo = 'POST /me/player/next';
+  } else if (actionString.includes('skipToPrevious')) {
+    requestInfo = 'POST /me/player/previous';
+  } else if (actionString.includes('startResumePlayback')) {
+    requestInfo = 'PUT /me/player/play';
+  } else if (actionString.includes('pausePlayback')) {
+    requestInfo = 'PUT /me/player/pause';
+  } else if (actionString.includes('addItemToPlaybackQueue')) {
+    requestInfo = 'POST /me/player/queue';
+  } else if (actionString.includes('createPlaylist')) {
+    requestInfo = 'POST /users/{user_id}/playlists';
+  } else if (actionString.includes('addItemsToPlaylist')) {
+    requestInfo = 'POST /playlists/{playlist_id}/tracks';
+  } else if (actionString.includes('updatePlaylistItems')) {
+    requestInfo = 'PUT /playlists/{playlist_id}/tracks';
+  } else if (actionString.includes('playlists.playlists')) {
+    requestInfo = 'GET /me/playlists';
+  } else if (actionString.includes('getPlaylistItems')) {
+    requestInfo = 'GET /playlists/{playlist_id}/tracks';
+  } else if (actionString.includes('getRecentlyPlayedTracks')) {
+    requestInfo = 'GET /me/player/recently-played';
+  } else if (actionString.includes('savedTracks')) {
+    requestInfo = 'GET /me/tracks';
+  } else if (actionString.includes('.search(')) {
+    requestInfo = 'GET /search';
+  }
   
   try {
     const accessTokenObject = {
@@ -391,7 +434,10 @@ export async function handleAuthenticatedSpotifyRequest<T>(
     };
 
     const spotifyApi = SpotifyApi.withAccessToken(config.clientId, accessTokenObject);
-    return await action(spotifyApi);
+    const result = await action(spotifyApi);
+    const duration = Date.now() - startTime;
+    console.log(`✅ Spotify API ${requestInfo} completed | ${duration}ms`);
+    return result;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
@@ -424,7 +470,7 @@ export async function handleAuthenticatedSpotifyRequest<T>(
             spotifyAccessToken: newTokens.access_token,
             spotifyRefreshToken: newTokens.refresh_token || currentAuth.spotifyRefreshToken,
           });
-          console.log('✅ OAuth tokens refreshed and updated in auth store');
+          console.log(`✅ OAuth tokens refreshed for ${requestInfo} | auth store updated`);
         }
         
         // Retry the original request with fresh token
@@ -445,6 +491,8 @@ export async function handleAuthenticatedSpotifyRequest<T>(
     }
 
     // Rethrow other errors
+    const duration = Date.now() - startTime;
+    console.log(`❌ Spotify API ${requestInfo} failed | ${duration}ms | Error: ${errorMessage}`);
     throw error;
   }
 }

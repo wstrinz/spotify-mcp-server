@@ -153,9 +153,27 @@ const skipToNext: tool<{
   handler: async (args, _extra: SpotifyHandlerExtra) => {
     const { deviceId } = args;
 
-    await handleSpotifyRequest(async (spotifyApi) => {
-      await spotifyApi.player.skipToNext(deviceId || '');
-    });
+    // Get current auth info
+    const authInfo = getCurrentAuth();
+    
+    if (!authInfo?.spotifyAccessToken) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: No authentication found. Please authenticate first.',
+          },
+        ],
+      };
+    }
+
+    await handleAuthenticatedSpotifyRequest(
+      authInfo.spotifyAccessToken,
+      authInfo.spotifyRefreshToken,
+      async (spotifyApi) => {
+        await spotifyApi.player.skipToNext(deviceId || '');
+      },
+    );
 
     return {
       content: [
@@ -183,9 +201,27 @@ const skipToPrevious: tool<{
   handler: async (args, _extra: SpotifyHandlerExtra) => {
     const { deviceId } = args;
 
-    await handleSpotifyRequest(async (spotifyApi) => {
-      await spotifyApi.player.skipToPrevious(deviceId || '');
-    });
+    // Get current auth info
+    const authInfo = getCurrentAuth();
+    
+    if (!authInfo?.spotifyAccessToken) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: No authentication found. Please authenticate first.',
+          },
+        ],
+      };
+    }
+
+    await handleAuthenticatedSpotifyRequest(
+      authInfo.spotifyAccessToken,
+      authInfo.spotifyRefreshToken,
+      async (spotifyApi) => {
+        await spotifyApi.player.skipToPrevious(deviceId || '');
+      },
+    );
 
     return {
       content: [
@@ -219,15 +255,33 @@ const createPlaylist: tool<{
   handler: async (args, _extra: SpotifyHandlerExtra) => {
     const { name, description, public: isPublic = false } = args;
 
-    const result = await handleSpotifyRequest(async (spotifyApi) => {
-      const me = await spotifyApi.currentUser.profile();
+    // Get current auth info
+    const authInfo = getCurrentAuth();
+    
+    if (!authInfo?.spotifyAccessToken) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: No authentication found. Please authenticate first.',
+          },
+        ],
+      };
+    }
 
-      return await spotifyApi.playlists.createPlaylist(me.id, {
-        name,
-        description,
-        public: isPublic,
-      });
-    });
+    const result = await handleAuthenticatedSpotifyRequest(
+      authInfo.spotifyAccessToken,
+      authInfo.spotifyRefreshToken,
+      async (spotifyApi) => {
+        const me = await spotifyApi.currentUser.profile();
+
+        return await spotifyApi.playlists.createPlaylist(me.id, {
+          name,
+          description,
+          public: isPublic,
+        });
+      },
+    );
 
     return {
       content: [
@@ -256,7 +310,7 @@ const addTracksToPlaylist: tool<{
       .optional()
       .describe('Position to insert the tracks (0-based index)'),
   },
-  handler: async (args, _extra: SpotifyHandlerExtra) => {
+  handler: async (args, extra: SpotifyHandlerExtra) => {
     const { playlistId, trackIds, position } = args;
 
     if (trackIds.length === 0) {
@@ -270,16 +324,34 @@ const addTracksToPlaylist: tool<{
       };
     }
 
+    // Get current auth info
+    const authInfo = getCurrentAuth();
+    
+    if (!authInfo?.spotifyAccessToken) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: No authentication found. Please authenticate first.',
+          },
+        ],
+      };
+    }
+
     try {
       const trackUris = trackIds.map((id) => `spotify:track:${id}`);
 
-      await handleSpotifyRequest(async (spotifyApi) => {
-        await spotifyApi.playlists.addItemsToPlaylist(
-          playlistId,
-          trackUris,
-          position,
-        );
-      });
+      await handleAuthenticatedSpotifyRequest(
+        authInfo.spotifyAccessToken,
+        authInfo.spotifyRefreshToken,
+        async (spotifyApi) => {
+          await spotifyApi.playlists.addItemsToPlaylist(
+            playlistId,
+            trackUris,
+            position,
+          );
+        },
+      );
 
       return {
         content: [
@@ -320,9 +392,27 @@ const resumePlayback: tool<{
   handler: async (args, _extra: SpotifyHandlerExtra) => {
     const { deviceId } = args;
 
-    await handleSpotifyRequest(async (spotifyApi) => {
-      await spotifyApi.player.startResumePlayback(deviceId || '');
-    });
+    // Get current auth info
+    const authInfo = getCurrentAuth();
+    
+    if (!authInfo?.spotifyAccessToken) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: No authentication found. Please authenticate first.',
+          },
+        ],
+      };
+    }
+
+    await handleAuthenticatedSpotifyRequest(
+      authInfo.spotifyAccessToken,
+      authInfo.spotifyRefreshToken,
+      async (spotifyApi) => {
+        await spotifyApi.player.startResumePlayback(deviceId || '');
+      },
+    );
 
     return {
       content: [
@@ -378,12 +468,30 @@ const addToQueue: tool<{
       };
     }
 
-    await handleSpotifyRequest(async (spotifyApi) => {
-      await spotifyApi.player.addItemToPlaybackQueue(
-        spotifyUri,
-        deviceId || '',
-      );
-    });
+    // Get current auth info
+    const authInfo = getCurrentAuth();
+    
+    if (!authInfo?.spotifyAccessToken) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: No authentication found. Please authenticate first.',
+          },
+        ],
+      };
+    }
+
+    await handleAuthenticatedSpotifyRequest(
+      authInfo.spotifyAccessToken,
+      authInfo.spotifyRefreshToken,
+      async (spotifyApi) => {
+        await spotifyApi.player.addItemToPlaybackQueue(
+          spotifyUri,
+          deviceId || '',
+        );
+      },
+    );
 
     return {
       content: [
@@ -446,31 +554,49 @@ const reorderPlaylistTracks: tool<{
       };
     }
 
+    // Get current auth info
+    const authInfo = getCurrentAuth();
+    
+    if (!authInfo?.spotifyAccessToken) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: No authentication found. Please authenticate first.',
+          },
+        ],
+      };
+    }
+
     try {
-      const result = await handleSpotifyRequest(async (spotifyApi) => {
-        const requestBody: {
-          range_start: number;
-          insert_before: number;
-          range_length?: number;
-          snapshot_id?: string;
-        } = {
-          range_start: rangeStart,
-          insert_before: insertBefore,
-        };
+      const result = await handleAuthenticatedSpotifyRequest(
+        authInfo.spotifyAccessToken,
+        authInfo.spotifyRefreshToken,
+        async (spotifyApi) => {
+          const requestBody: {
+            range_start: number;
+            insert_before: number;
+            range_length?: number;
+            snapshot_id?: string;
+          } = {
+            range_start: rangeStart,
+            insert_before: insertBefore,
+          };
 
-        if (rangeLength !== 1) {
-          requestBody.range_length = rangeLength;
-        }
+          if (rangeLength !== 1) {
+            requestBody.range_length = rangeLength;
+          }
 
-        if (snapshotId) {
-          requestBody.snapshot_id = snapshotId;
-        }
+          if (snapshotId) {
+            requestBody.snapshot_id = snapshotId;
+          }
 
-        return await spotifyApi.playlists.updatePlaylistItems(
-          playlistId,
-          requestBody,
-        );
-      });
+          return await spotifyApi.playlists.updatePlaylistItems(
+            playlistId,
+            requestBody,
+          );
+        },
+      );
 
       const trackWord = rangeLength === 1 ? 'track' : 'tracks';
       const fromPosition = rangeStart + 1; // Convert to 1-based for user display

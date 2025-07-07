@@ -68,9 +68,19 @@ const sessionAuthMap = new Map<string, any>();
 
 // Clean MCP request handler
 const mcpHandler = async (req: express.Request & { auth?: any }, res: express.Response) => {
+  const startTime = Date.now();
+  const method = req.body?.method;
+  const toolName = req.body?.params?.name;
+  
   try {
     const sessionId = req.headers['mcp-session-id'] as string;
     const isInitRequest = req.body?.method === 'initialize';
+    
+    // Only log actual tool calls, not routine MCP protocol messages
+    const isToolCall = toolName && method === 'tools/call';
+    if (isToolCall) {
+      console.log(`📡 MCP ${req.method} request: ${method} (${toolName}) | Session: ${sessionId || 'new'}`);
+    }
 
     let transport: StreamableHTTPServerTransport;
 
@@ -125,8 +135,14 @@ const mcpHandler = async (req: express.Request & { auth?: any }, res: express.Re
 
     await transport.handleRequest(req, res, req.body);
     
+    const duration = Date.now() - startTime;
+    // Only log completion for tool calls
+    if (isToolCall) {
+      console.log(`✅ MCP request completed: ${method} (${toolName}) | ${duration}ms`);
+    }
+    
   } catch (error) {
-    console.error('Error handling MCP request:', error);
+    console.error(`❌ MCP request failed: ${method}${toolName ? ` (${toolName})` : ''} | Error: ${error instanceof Error ? error.message : String(error)}`);
     if (!res.headersSent) {
       res.status(500).json({
         jsonrpc: '2.0',

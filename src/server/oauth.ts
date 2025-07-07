@@ -136,9 +136,6 @@ export class OAuthProvider {
     ): Promise<void> => {
       const authHeader = req.headers.authorization;
       
-      console.log(`🔐 Auth middleware: ${req.method} ${req.path}`);
-      console.log(`🔐 Authorization header: ${authHeader ? 'Present' : 'Missing'}`);
-      console.log(`🔐 Headers:`, Object.keys(req.headers));
 
       if (!authHeader || !authHeader.startsWith("Bearer ")) {
         console.log(`❌ No valid authorization header found`);
