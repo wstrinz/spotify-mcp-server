@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { SpotifyHandlerExtra, tool } from './types.js';
-import { handleSpotifyRequest, handleAuthenticatedSpotifyRequest } from './utils.js';
+import { handleAuthenticatedSpotifyRequest } from './utils.js';
 import { getCurrentAuth } from './server/auth-store.js';
 
 const playMusic: tool<{

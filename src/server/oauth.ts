@@ -390,7 +390,7 @@ export class OAuthProvider {
      * Validates request, stores pending authorization, and
      * redirects to Spotify OAuth for user consent.
      */
-    app.get("/oauth/authorize", (req, res) => {
+    app.get("/oauth/authorize", async (req, res) => {
       console.log(`🔑 Authorization request received:`, req.query);
       
       const {

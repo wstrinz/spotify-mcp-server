@@ -1,7 +1,7 @@
 import type { MaxInt } from '@spotify/web-api-ts-sdk';
 import { z } from 'zod';
 import type { SpotifyHandlerExtra, SpotifyTrack, tool } from './types.js';
-import { formatDuration, handleSpotifyRequest, handleAuthenticatedSpotifyRequest } from './utils.js';
+import { formatDuration, handleAuthenticatedSpotifyRequest } from './utils.js';
 import { getCurrentAuth } from './server/auth-store.js';
 
 function isTrack(item: any): item is SpotifyTrack {
