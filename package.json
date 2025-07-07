@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
+    "start": "node build/remote-server.js",
     "auth": "tsc && node build/auth.js",
     "start:remote": "tsc && node build/remote-server.js",
     "dev:remote": "tsc && node build/remote-server.js",
