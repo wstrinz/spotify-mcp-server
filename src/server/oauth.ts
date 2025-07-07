@@ -507,6 +507,11 @@ export class OAuthProvider {
       
       console.log(`🔄 Spotify redirect URI: ${spotifyRedirectUri}`);
 
+      // Clear any existing auth to force re-authentication on reconnection
+      const { clearAuth } = await import('./auth-store.js');
+      clearAuth();
+      console.log('🔄 Cleared existing auth data to force re-authentication');
+
       // Redirect to Spotify OAuth
       const spotifyOAuthUrl = new URL("https://accounts.spotify.com/authorize");
       spotifyOAuthUrl.searchParams.set("client_id", this.config.SPOTIFY_CLIENT_ID);
@@ -514,6 +519,7 @@ export class OAuthProvider {
       spotifyOAuthUrl.searchParams.set("state", `${authKey}:${spotifyState}`);
       spotifyOAuthUrl.searchParams.set("redirect_uri", spotifyRedirectUri);
       spotifyOAuthUrl.searchParams.set("scope", "user-read-private user-read-email user-library-read user-read-recently-played user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private playlist-read-collaborative playlist-modify-private playlist-modify-public");
+      spotifyOAuthUrl.searchParams.set("show_dialog", "true"); // Force re-authentication
 
       res.redirect(spotifyOAuthUrl.toString());
     });
