@@ -10,9 +10,9 @@ export function loadServerConfig(): ServerConfig {
   const config = {
     SPOTIFY_CLIENT_ID: process.env.SPOTIFY_CLIENT_ID || '',
     SPOTIFY_CLIENT_SECRET: process.env.SPOTIFY_CLIENT_SECRET || '',
-    REDIRECT_URL: process.env.REDIRECT_URL || 'http://localhost:3000/oauth/spotify/callback',
+    REDIRECT_URL: process.env.REDIRECT_URL || 'http://localhost:8888/callback',
     JWT_SECRET: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
-    OAUTH_ISSUER: process.env.OAUTH_ISSUER || 'http://localhost:3000',
+    OAUTH_ISSUER: process.env.OAUTH_ISSUER || 'http://localhost:8888',
   };
 
   // Validate required config

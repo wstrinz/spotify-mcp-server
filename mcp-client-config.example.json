@@ -2,10 +2,10 @@
   "description": "Example MCP client configuration for remote Spotify server",
   "remote_servers": {
     "spotify": {
-      "url": "http://localhost:3000/mcp",
+      "url": "http://localhost:8888/mcp",
       "oauth": {
-        "authorization_url": "http://localhost:3000/oauth/authorize",
-        "token_url": "http://localhost:3000/oauth/token",
+        "authorization_url": "http://localhost:8888/oauth/authorize",
+        "token_url": "http://localhost:8888/oauth/token",
         "client_id": "your-client-id",
         "scopes": ["mcp:read", "mcp:write"],
         "pkce": true
