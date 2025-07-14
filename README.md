@@ -5,6 +5,37 @@
 
 A **Model Context Protocol (MCP)** server that enables AI assistants like Claude and Cursor to control Spotify playback, manage playlists, and access user music data. Supports both **local STDIO** and **remote HTTP** deployment modes with **OAuth 2.1 authentication**.
 
+## 🚀 Quickstart
+
+Get up and running in 5 minutes:
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/marcelmarais/spotify-mcp-server.git
+cd spotify-mcp-server
+
+# 2. Install dependencies and build
+npm install && npm run build
+
+# 3. Set up Spotify credentials
+# Visit https://developer.spotify.com/dashboard to create an app
+# Add http://localhost:8888/callback as redirect URI
+
+# 4. Configure environment
+cp .env.example .env
+# Edit .env with your Spotify Client ID and Secret
+
+# 5. Start the server
+npm run start:remote
+
+# 6. Add to Claude Desktop (see Client Integration below)
+```
+
+**That's it!** Your AI assistant can now control Spotify. Try asking:
+- _"Play some upbeat music"_
+- _"What's currently playing?"_
+- _"Create a chill playlist with 10 tracks"_
+
 <details>
 <summary>📋 Contents</summary>
   
