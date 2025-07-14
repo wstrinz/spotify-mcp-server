@@ -1,0 +1,26 @@
+{
+  "dxt_version": "0.1",
+  "name": "spotify-mcp-server",
+  "version": "1.0.0",
+  "description": "A Model Context Protocol server for Spotify integration",
+  "author": {
+    "name": "Will Strinz"
+  },
+  "server": {
+    "type": "node",
+    "entry_point": "build/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "${__dirname}/build/index.js"
+      ],
+      "env": {}
+    }
+  },
+  "tools": [
+    {
+      "name": "Liked Tracks"
+    }
+  ],
+  "license": "MIT"
+}

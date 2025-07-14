@@ -13,7 +13,8 @@
     "dev:remote": "tsc && node build/remote-server.js",
     "lint": "biome check --diagnostic-level=warn --error-on-warnings",
     "lint:fix": "biome check --write --unsafe --organize-imports-enabled=true",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "pack": "npm run build && npx @anthropic-ai/dxt pack"
   },
   "files": [
     "build"
