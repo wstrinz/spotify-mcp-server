@@ -40,6 +40,7 @@ The server now implements OAuth 2.1 with PKCE (Proof Key for Code Exchange) for 
    JWT_SECRET=generate-a-long-random-string-here
    OAUTH_ISSUER=http://localhost:8888
    PORT=8888
+   AUTH_STORE_PATH=./data/auth-store.json
    ```
 
 3. **Important**: Generate a secure JWT secret:
@@ -104,9 +105,24 @@ Configure your MCP client to connect to:
 ## Security Considerations
 
 1. **HTTPS in Production**: Always use HTTPS in production environments
-2. **JWT Secret**: Use a cryptographically secure random string for JWT_SECRET
+2. **JWT Secret**: Use a cryptographically secure random string for JWT_SECRET. The default in `config.ts` is insecure and must be overridden in production.
 3. **Redirect URIs**: Only use trusted redirect URIs in your Spotify app configuration
-4. **Token Storage**: Tokens are stored in memory and will be lost on server restart
+4. **Token Storage**: Long-lived refresh tokens are persisted to a JSON file (`AUTH_STORE_PATH`, default `./data/auth-store.json`) so authenticated sessions survive restarts and redeploys. This file contains Spotify refresh tokens (long-lived secrets) — keep it on a private volume with restricted permissions (the file is written `0600`). Short-lived state (pending authorizations, authorization codes) remains in memory.
+
+## Durable Auth & Token Refresh
+
+- **Real Spotify refresh**: When an MCP client presents a `refresh_token` grant, the server uses the stored Spotify refresh token to call Spotify's token endpoint (`https://accounts.spotify.com/api/token`), obtains a fresh Spotify access token (and a rotated refresh token if Spotify returns one), persists it, and re-signs the MCP JWT around the new token. This keeps sessions alive past the 1-hour Spotify access-token expiry. If Spotify rejects the refresh token (400/401), the MCP refresh token is dropped and the client must re-authenticate.
+- **Persistence path**: Set `AUTH_STORE_PATH` to control where the refresh-token file is written (default `./data/auth-store.json`). A missing or corrupt file is tolerated — the server starts with an empty store.
+
+### Coolify Deployment (Persistent Volume Required)
+
+The deploy runs on Coolify (Nixpacks build, start command `node build/remote-server.js`). Because the refresh-token file must survive redeploys, **mount a persistent volume at the directory holding the auth-store file**:
+
+1. In the Coolify service, add a Persistent Storage volume mounted at the directory containing the auth store (e.g. `/app/data`).
+2. Set `AUTH_STORE_PATH` accordingly (e.g. `/app/data/auth-store.json`), or leave the default `./data/auth-store.json` if the working directory is `/app`.
+3. Set `JWT_SECRET` to a stable, long random value in Coolify env — if it changes between deploys, previously issued MCP JWTs (though not the persisted refresh tokens) become invalid.
+
+Without the mounted volume, the file is written to the ephemeral container filesystem and auth is wiped on every redeploy.
 
 ## Troubleshooting
 

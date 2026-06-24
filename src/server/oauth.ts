@@ -4,6 +4,7 @@ import { SignJWT, jwtVerify } from "jose";
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 
 import type { ServerConfig } from "./config.js";
+import { TokenStore } from "./token-store.js";
 
 export interface OAuthConfig extends ServerConfig {
   validRedirectUris: string[];
@@ -39,6 +40,27 @@ interface RefreshTokenData {
   expiresAt: number;
 }
 
+/** Shape of Spotify's token-endpoint response for the refresh_token grant. */
+interface SpotifyRefreshResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  scope?: string;
+  /** Spotify only returns this when it rotates the refresh token. */
+  refresh_token?: string;
+}
+
+/** Error carrying the HTTP status from a failed Spotify token request. */
+class SpotifyAuthError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message);
+    this.name = "SpotifyAuthError";
+  }
+}
+
 /**
  * OAuth 2.1 Provider for MCP Spotify Server
  *
@@ -65,9 +87,12 @@ interface RefreshTokenData {
 export class OAuthProvider {
   private readonly jwtSecret: Uint8Array;
   private readonly config: OAuthConfig;
+  // Short-lived state stays in memory only.
   private readonly pendingAuthorizations = new Map<string, PendingAuthorization>();
   private readonly authorizationCodes = new Map<string, AuthorizationCode>();
+  // Long-lived refresh tokens are persisted across restarts (see TokenStore).
   private readonly refreshTokens = new Map<string, RefreshTokenData>();
+  private readonly tokenStore: TokenStore;
 
   private readonly AUTHORIZATION_CODE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
   private readonly REFRESH_TOKEN_TIMEOUT_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
@@ -75,6 +100,23 @@ export class OAuthProvider {
   constructor(config: OAuthConfig) {
     this.config = config;
     this.jwtSecret = new TextEncoder().encode(config.JWT_SECRET);
+
+    // Load any persisted refresh tokens so sessions survive a restart/redeploy.
+    this.tokenStore = new TokenStore();
+    for (const [id, data] of this.tokenStore.load()) {
+      this.refreshTokens.set(id, data);
+    }
+  }
+
+  /**
+   * Persists the current refresh-token map to disk.
+   *
+   * @remarks
+   * Called whenever the refresh-token map changes (issue, rotate, revoke) so
+   * the long-lived Spotify refresh tokens survive a process restart.
+   */
+  private persistRefreshTokens(): void {
+    this.tokenStore.save(this.refreshTokens);
   }
 
   /**
@@ -589,6 +631,7 @@ export class OAuthProvider {
             spotifyTokens: authCode.spotifyTokens,
             expiresAt: Date.now() + this.REFRESH_TOKEN_TIMEOUT_MS,
           });
+          this.persistRefreshTokens();
 
           this.authorizationCodes.delete(code);
 
@@ -613,6 +656,7 @@ export class OAuthProvider {
           const tokenData = this.refreshTokens.get(refresh_token);
           if (!tokenData || tokenData.expiresAt < Date.now()) {
             this.refreshTokens.delete(refresh_token);
+            this.persistRefreshTokens();
             res.status(400).json({
               error: "invalid_grant",
               error_description: "Invalid or expired refresh token",
@@ -620,16 +664,61 @@ export class OAuthProvider {
             return;
           }
 
-          // TODO: Refresh Spotify tokens if needed
+          // Actually refresh the Spotify access token using the stored
+          // Spotify refresh token. This is what keeps sessions alive past the
+          // 1h Spotify access-token expiry.
+          let spotifyRefresh: SpotifyRefreshResponse;
+          try {
+            spotifyRefresh = await this.refreshSpotifyToken(
+              tokenData.spotifyTokens.refreshToken,
+            );
+          } catch (error) {
+            if (error instanceof SpotifyAuthError && (error.status === 400 || error.status === 401)) {
+              // Spotify rejected the refresh token (revoked/expired). The MCP
+              // refresh token is now useless — drop it and force re-auth.
+              this.refreshTokens.delete(refresh_token);
+              this.persistRefreshTokens();
+              res.status(400).json({
+                error: "invalid_grant",
+                error_description: "Spotify refresh token is no longer valid; re-authentication required",
+              });
+              return;
+            }
+            throw error;
+          }
+
+          // Spotify returns a new access token and MAY rotate the refresh
+          // token. Persist whatever it gives us so the next refresh works.
+          const newSpotifyTokens = {
+            accessToken: spotifyRefresh.access_token,
+            refreshToken: spotifyRefresh.refresh_token || tokenData.spotifyTokens.refreshToken,
+          };
+          tokenData.spotifyTokens = newSpotifyTokens;
+          this.refreshTokens.set(refresh_token, tokenData);
+          this.persistRefreshTokens();
+
+          // Keep the auth-store's current Spotify token in sync so in-flight
+          // tool calls use the freshly refreshed access token.
+          const { updateCurrentAuth } = await import("./auth-store.js");
+          updateCurrentAuth({
+            userId: tokenData.userId,
+            spotifyAccessToken: newSpotifyTokens.accessToken,
+            spotifyRefreshToken: newSpotifyTokens.refreshToken,
+          });
+
+          // Re-sign the MCP JWT around the NEW Spotify access token, honoring
+          // Spotify's reported expiry.
+          const expiresIn = spotifyRefresh.expires_in || 3600;
           const accessToken = await this.createAccessToken(
             tokenData.userId,
-            tokenData.spotifyTokens,
+            newSpotifyTokens,
+            expiresIn,
           );
 
           res.json({
             access_token: accessToken,
             token_type: "Bearer",
-            expires_in: 3600, // 1 hour to match Spotify token expiry
+            expires_in: expiresIn,
             scope: "read",
           });
           return;
@@ -786,6 +875,7 @@ export class OAuthProvider {
   private async createAccessToken(
     userId: string,
     spotifyTokens: { accessToken: string; refreshToken: string },
+    expiresInSeconds = 3600,
   ): Promise<string> {
     return await new SignJWT({
       sub: userId,
@@ -794,10 +884,54 @@ export class OAuthProvider {
     })
       .setProtectedHeader({ alg: "HS256" })
       .setIssuedAt()
-      .setExpirationTime("1h") // 1 hour to match Spotify token expiry
+      // Match the Spotify access-token expiry (default 1h).
+      .setExpirationTime(Math.floor(Date.now() / 1000) + expiresInSeconds)
       .setAudience("spotify-mcp-server")
       .setIssuer(this.config.OAUTH_ISSUER)
       .sign(this.jwtSecret);
+  }
+
+  /**
+   * Refreshes a Spotify access token using a stored Spotify refresh token.
+   *
+   * @remarks
+   * Mirrors {@link exchangeSpotifyCode}: POSTs to Spotify's token endpoint
+   * with HTTP Basic auth (client id/secret) but with the
+   * `grant_type=refresh_token` flow. Spotify returns a new access token and
+   * may (but does not always) rotate the refresh token.
+   *
+   * @param spotifyRefreshToken - The stored Spotify refresh token
+   * @returns Spotify token response (access_token, expires_in, maybe refresh_token)
+   * @throws {SpotifyAuthError} when Spotify returns a non-2xx response
+   */
+  private async refreshSpotifyToken(
+    spotifyRefreshToken: string,
+  ): Promise<SpotifyRefreshResponse> {
+    const auth = Buffer.from(
+      `${this.config.SPOTIFY_CLIENT_ID}:${this.config.SPOTIFY_CLIENT_SECRET}`,
+    ).toString("base64");
+
+    const response = await fetch("https://accounts.spotify.com/api/token", {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${auth}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: spotifyRefreshToken,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new SpotifyAuthError(
+        `Failed to refresh Spotify token: ${response.status} - ${errorText}`,
+        response.status,
+      );
+    }
+
+    return (await response.json()) as SpotifyRefreshResponse;
   }
 
   /**

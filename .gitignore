@@ -7,3 +7,5 @@ build
 dist
 .DS_Store
 *.dxt
+data
+auth-store.json
