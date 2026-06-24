@@ -54,7 +54,10 @@ export function validateProtocolVersion(req: Request, res: Response, next: NextF
   }
   
   // Check supported versions
-  const supportedVersions = ['2025-06-18', '2025-03-26', '2024-11-05'];
+  // NOTE: keep current with the MCP spec — clients (e.g. claude.ai) negotiate the
+  // latest protocol version and this gate must allow it, or the connection is
+  // rejected before auth. 2025-11-25 added 2026-06 (claude.ai sends it).
+  const supportedVersions = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
   if (!supportedVersions.includes(version as string)) {
     console.warn('Unsupported protocol version', { version });
     res.status(400).json({
