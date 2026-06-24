@@ -52,19 +52,29 @@ oauthProvider.setupRoutes(app);
 // Transport management for MCP sessions
 const transports = new Map<string, StreamableHTTPServerTransport>();
 
-// Create MCP server instance
-const server = new McpServer({
-  name: 'spotify-controller-remote',
-  version: '1.0.0',
-});
+// Per-session McpServer instances (keyed by sessionId), for cleanup on close
+const servers = new Map<string, McpServer>();
 
 // Map to store session -> auth info
 const sessionAuthMap = new Map<string, any>();
 
-// Register all tools
-[...readTools, ...playTools].forEach((tool) => {
-  server.tool(tool.name, tool.description, tool.schema, tool.handler);
-});
+// Factory: build a FRESH McpServer (with all tools registered) per session.
+// The MCP SDK Server/McpServer can only be connected to ONE transport at a
+// time, so a shared global instance breaks concurrent sessions ("Already
+// connected to a transport"). Each session must own its own server instance.
+function createServer(): McpServer {
+  const server = new McpServer({
+    name: 'spotify-controller-remote',
+    version: '1.0.0',
+  });
+
+  // Register all tools onto this instance
+  [...readTools, ...playTools].forEach((tool) => {
+    server.tool(tool.name, tool.description, tool.schema, tool.handler);
+  });
+
+  return server;
+}
 
 // Clean MCP request handler
 const mcpHandler = async (req: express.Request & { auth?: any }, res: express.Response) => {
@@ -85,13 +95,23 @@ const mcpHandler = async (req: express.Request & { auth?: any }, res: express.Re
     let transport: StreamableHTTPServerTransport;
 
     if (isInitRequest) {
+      // Each session gets its OWN McpServer instance. The MCP SDK can only
+      // connect a server to ONE transport at a time, so a shared global server
+      // throws "Already connected to a transport" on the 2nd concurrent
+      // session's initialize. Build a fresh server per session here.
+      const sessionServer = createServer();
+
       // Create new transport for initialization
       transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => uuidv4(),
         onsessioninitialized: (newSessionId) => {
           console.log(`MCP session initialized: ${newSessionId}`);
           transports.set(newSessionId, transport);
-          
+          // Track the per-session server (keyed by sessionId) for cleanup on
+          // close. The SDK assigns transport.sessionId only while handling the
+          // initialize request, so register it here rather than after connect().
+          servers.set(newSessionId, sessionServer);
+
           // Store auth info for this session
           if (req.auth?.extra) {
             const authInfo = {
@@ -113,7 +133,8 @@ const mcpHandler = async (req: express.Request & { auth?: any }, res: express.Re
         if (sid && transports.has(sid)) {
           console.log(`MCP session closed: ${sid}`);
           transports.delete(sid);
-          
+          servers.delete(sid);
+
           // Clean up auth info
           import('./server/auth-store.js').then(({ removeAuth }) => {
             removeAuth(sid);
@@ -121,7 +142,10 @@ const mcpHandler = async (req: express.Request & { auth?: any }, res: express.Re
         }
       };
 
-      await server.connect(transport);
+      // Connect this session's own server to its own transport. Because each
+      // session has a distinct McpServer, no transport is ever shared and the
+      // "Already connected to a transport" error can no longer occur.
+      await sessionServer.connect(transport);
     } else if (sessionId && transports.has(sessionId)) {
       // Use existing transport
       transport = transports.get(sessionId)!;
